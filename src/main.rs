@@ -75,7 +75,7 @@ fn main() -> Result<()> {
         show_coords: cli.coords,
     };
 
-    let drawing = render_properties(&mut properties, &options)?;
+    let drawing = render_properties(&properties, &options)?;
     println!("{}", drawing);
     Ok(())
 }

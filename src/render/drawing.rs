@@ -63,6 +63,15 @@ impl Drawing {
         self.cells[x][y] = value.into();
     }
 
+    pub fn increase_size(&mut self, width: usize, height: usize) {
+        self.ensure_size(width, height);
+    }
+
+    pub fn blank_like(&self) -> Drawing {
+        let (max_x, max_y) = self.size();
+        Drawing::new(max_x, max_y)
+    }
+
     pub fn draw_text(&mut self, start: DrawingCoord, text: &str) {
         let mut x = start.x;
         let y = start.y;
@@ -109,141 +118,95 @@ impl Drawing {
     ) -> Vec<DrawingCoord> {
         let mut drawn = Vec::new();
         let dir = determine_direction(
-            GenericCoord {
-                x: from.x,
-                y: from.y,
-            },
+            GenericCoord { x: from.x, y: from.y },
             GenericCoord { x: to.x, y: to.y },
         );
-        let mut x = from.x;
-        let mut y = from.y;
-        let mut step = |x: i32, y: i32, value: &str, drawn: &mut Vec<DrawingCoord>| {
-            let coord = DrawingCoord { x, y };
-            self.set(coord, value.to_string());
-            drawn.push(coord);
-        };
 
+        let mut start = from;
+        let mut end = to;
         match dir {
             Direction::Up => {
-                for py in (to.y - offset_to)..=(from.y - offset_from) {
-                    step(x, py, if use_ascii { "|" } else { "│" }, &mut drawn);
-                }
+                start.y -= offset_from;
+                end.y -= offset_to;
             }
             Direction::Down => {
-                for py in (from.y + offset_from)..=(to.y + offset_to) {
-                    step(x, py, if use_ascii { "|" } else { "│" }, &mut drawn);
-                }
+                start.y += offset_from;
+                end.y += offset_to;
             }
             Direction::Left => {
-                for px in (to.x - offset_to)..=(from.x - offset_from) {
-                    step(px, y, if use_ascii { "-" } else { "─" }, &mut drawn);
-                }
+                start.x -= offset_from;
+                end.x -= offset_to;
             }
             Direction::Right => {
-                for px in (from.x + offset_from)..=(to.x + offset_to) {
-                    step(px, y, if use_ascii { "-" } else { "─" }, &mut drawn);
-                }
+                start.x += offset_from;
+                end.x += offset_to;
             }
             Direction::UpperLeft => {
-                let mut curr_x = from.x;
-                let mut curr_y = from.y - offset_from;
-                while curr_x >= to.x - offset_to && curr_y >= to.y - offset_to {
-                    step(
-                        curr_x,
-                        curr_y,
-                        if use_ascii { "\\" } else { "╲" },
-                        &mut drawn,
-                    );
-                    curr_x -= 1;
-                    curr_y -= 1;
-                }
+                start.x -= offset_from;
+                start.y -= offset_from;
+                end.x -= offset_to;
+                end.y -= offset_to;
             }
             Direction::UpperRight => {
-                let mut curr_x = from.x;
-                let mut curr_y = from.y - offset_from;
-                while curr_x <= to.x + offset_to && curr_y >= to.y - offset_to {
-                    step(
-                        curr_x,
-                        curr_y,
-                        if use_ascii { "/" } else { "╱" },
-                        &mut drawn,
-                    );
-                    curr_x += 1;
-                    curr_y -= 1;
-                }
+                start.x += offset_from;
+                start.y -= offset_from;
+                end.x += offset_to;
+                end.y -= offset_to;
             }
             Direction::LowerLeft => {
-                let mut curr_x = from.x;
-                let mut curr_y = from.y + offset_from;
-                while curr_x >= to.x - offset_to && curr_y <= to.y + offset_to {
-                    step(
-                        curr_x,
-                        curr_y,
-                        if use_ascii { "/" } else { "╱" },
-                        &mut drawn,
-                    );
-                    curr_x -= 1;
-                    curr_y += 1;
-                }
+                start.x -= offset_from;
+                start.y += offset_from;
+                end.x -= offset_to;
+                end.y += offset_to;
             }
             Direction::LowerRight => {
-                let mut curr_x = from.x;
-                let mut curr_y = from.y + offset_from;
-                while curr_x <= to.x + offset_to && curr_y <= to.y + offset_to {
-                    step(
-                        curr_x,
-                        curr_y,
-                        if use_ascii { "\\" } else { "╲" },
-                        &mut drawn,
-                    );
-                    curr_x += 1;
-                    curr_y += 1;
-                }
+                start.x += offset_from;
+                start.y += offset_from;
+                end.x += offset_to;
+                end.y += offset_to;
             }
             Direction::Middle => {}
         }
 
-        if drawn.is_empty() {
-            drawn.push(from);
-        }
-        drawn
-    }
-
-    pub fn merge_with(
-        base: &Drawing,
-        offset: DrawingCoord,
-        drawings: &[Drawing],
-        use_ascii: bool,
-    ) -> Drawing {
-        let mut max_x = base.cells.len().saturating_sub(1);
-        let mut max_y = if base.cells.is_empty() {
-            0
-        } else {
-            base.cells[0].len().saturating_sub(1)
+        let step_x = to_sign(end.x - start.x);
+        let step_y = to_sign(end.y - start.y);
+        let ch = match dir {
+            Direction::Up | Direction::Down => {
+                if use_ascii { "|" } else { "│" }
+            }
+            Direction::Left | Direction::Right => {
+                if use_ascii { "-" } else { "─" }
+            }
+            Direction::UpperLeft | Direction::LowerRight => {
+                if use_ascii { "\\" } else { "╲" }
+            }
+            Direction::UpperRight | Direction::LowerLeft => {
+                if use_ascii { "/" } else { "╱" }
+            }
+            Direction::Middle => " ",
         };
 
-        for d in drawings {
-            let (dx, dy) = d.size();
-            max_x = max_x.max(dx + offset.x as usize);
-            max_y = max_y.max(dy + offset.y as usize);
+        let mut current = start;
+        loop {
+            self.set(current, ch.to_string());
+            drawn.push(current);
+            if current == end {
+                break;
+            }
+            current = DrawingCoord {
+                x: current.x + step_x,
+                y: current.y + step_y,
+            };
         }
 
-        let mut merged = Drawing::new(max_x, max_y);
-        merged.overlay(base, DrawingCoord { x: 0, y: 0 }, use_ascii);
-        for d in drawings {
-            merged.overlay(d, offset, use_ascii);
-        }
-        merged
+        drawn
     }
 
     pub fn overlay(&mut self, other: &Drawing, offset: DrawingCoord, use_ascii: bool) {
         let start_x = offset.x.max(0) as usize;
         let start_y = offset.y.max(0) as usize;
         let (other_max_x, other_max_y) = other.size();
-        self.ensure_size(
-            start_x + other_max_x,
-            start_y + other_max_y,
-        );
+        self.ensure_size(start_x + other_max_x, start_y + other_max_y);
 
         for x in 0..=other_max_x {
             for y in 0..=other_max_y {
@@ -442,4 +405,14 @@ fn merge_junctions(current: &str, new_char: &str) -> String {
         .and_then(|inner| inner.get(new_char))
         .map(|s| s.to_string())
         .unwrap_or_else(|| current.to_string())
+}
+
+fn to_sign(value: i32) -> i32 {
+    if value == 0 {
+        0
+    } else if value > 0 {
+        1
+    } else {
+        -1
+    }
 }

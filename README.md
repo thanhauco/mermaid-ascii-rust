@@ -14,6 +14,12 @@ Rust rewrite of [`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-asc
 cargo run -- --file examples/basic.mermaid
 ```
 
+Additional samples live in `examples/`:
+
+- `basic.mermaid` – simple LR flow
+- `labels.mermaid` – labeled edges
+- `subgraph.mermaid` – nested groups (work-in-progress)
+
 Flags mirror the original Go tool:
 
 - `-f, --file` (use `-` or omit for stdin)
