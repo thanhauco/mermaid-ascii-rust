@@ -1,0 +1,39 @@
+flowchart TD
+  %% Declare subgraphs
+  subgraph Data Sources
+    API[(REST API)]
+    DB[(Postgres)]
+    MQ[(Event Bus)]
+  end
+
+  subgraph Pipeline
+    Ingest --> Normalize --> Enrich
+    Enrich --> FanOut
+    FanOut -->|batch| BatchStore[(Warehouse)]
+    FanOut -->|stream| StreamSink[(Realtime Consumers)]
+  end
+
+  subgraph Control Plane
+    Scheduler --> Monitor
+    Monitor --> Alerting
+  end
+
+  %% External actors
+  User((Operator))
+  Dashboard[[Metrics UI]]
+
+  %% Edges with labels and branches
+  API -->|json| Ingest
+  DB -->|changes| Ingest
+  MQ -->|events| Ingest
+  Ingest --> Normalize
+  Normalize --> Enrich
+  Enrich -->|cache miss| Recompute{Is cache warm?}
+  Recompute -->|no| FanOut
+  Recompute -->|yes| Cache[(Result Cache)] --> FanOut
+  FanOut --> Scheduler
+  Scheduler -.->|policy| Monitor
+  Monitor --> Alerting --> User
+  Alerting --> Dashboard
+  Dashboard --> Monitor
+  FanOut -->|feedback| Monitor

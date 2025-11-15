@@ -29,6 +29,16 @@ fn labeled_edges_show_text() {
 }
 
 #[test]
+fn complex_pipeline_example_renders_multiple_sections() {
+    let output = run_example("complex");
+    assert!(
+        output.contains("Operator") && output.contains("REST API"),
+        "complex example output:\n{}",
+        output
+    );
+}
+
+#[test]
 fn ascii_mode_respects_flag() {
     let mut cmd = Command::cargo_bin("mermaid-ascii").expect("binary exists");
     cmd.arg("--file")

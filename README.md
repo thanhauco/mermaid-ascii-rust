@@ -19,6 +19,7 @@ Additional samples live in `examples/`:
 - `basic.mermaid` – simple LR flow
 - `labels.mermaid` – labeled edges
 - `subgraph.mermaid` – nested groups (work-in-progress)
+- `complex.mermaid` – larger TD pipeline with subgraphs, labels, and decisions
 
 Flags mirror the original Go tool:
 
